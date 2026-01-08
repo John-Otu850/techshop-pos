@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Receipt - TechShop POS</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 10px;
+      background: white;
+      color: black;
+    }
+    .receipt-container {
+      border: 1px dashed #ccc;
+      padding: 15px;
+    }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .divider { border-top: 1px dashed #000; margin: 8px 0; }
+    .bold { font-weight: bold; }
+    .print-btn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #0d6efd;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    @media print {
+      .print-btn { display: none; }
+      body { margin: 0; }
+      .receipt-container { border: none; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-container" id="receipt">
+    <!-- Receipt content will be inserted here -->
+  </div>
+  <button class="print-btn" onclick="window.print()">🖨️ Print Receipt</button>
+
+  <script>
+    // Get receipt data from localStorage
+    const receiptData = JSON.parse(localStorage.getItem('receiptData'));
+
+    if (!receiptData) {
+      document.getElementById('receipt').innerHTML = '<div class="text-center">❌ No receipt data found.</div>';
+    } else {
+      // Build receipt HTML
+      let html = `
+        <div class="text-center bold">${receiptData.shopName}</div>
+        <div class="text-center">Computer & Accessories</div>
+        <div class="text-center">${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+        <div class="divider"></div>
+        <div>Customer: ${receiptData.customer}</div>
+        <div class="divider"></div>
+      `;
+
+      // Add items
+      receiptData.items.forEach(item => {
+        const line = `${item.name} x${item.qty}`;
+        const priceLine = `$${item.price.toFixed(2)} x ${item.qty} = $${item.total.toFixed(2)}`;
+        html += `<div><span>${line}</span><span class="text-right">${priceLine}</span></div>`;
+      });
+
+      html += `
+        <div class="divider"></div>
+        <div class="bold text-right">TOTAL: $${receiptData.total.toFixed(2)}</div>
+        <div class="text-center" style="margin-top: 15px;">Thank you for your purchase!</div>
+        <div class="text-center">Visit us again soon!</div>
+      `;
+
+      document.getElementById('receipt').innerHTML = html;
+    }
+  </script>
+</body>
+</html>

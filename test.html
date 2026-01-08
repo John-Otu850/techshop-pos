@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Supabase Test</title>
+</head>
+<body>
+  <h2>Testing Supabase Connection...</h2>
+  <p id="status">Connecting...</p>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabaseUrl = 'https://zxxgfmwyiwobwzwuovyf.supabase.co';
+    const supabaseKey = 'sb_publishable_4iPf_PhVHabhHyzP8JkQNQ_UrhcwjT4';
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data, error } = await supabase.from('products').select('*').limit(1);
+
+    const statusEl = document.getElementById('status');
+    if (error) {
+      statusEl.textContent = '❌ Error: ' + error.message;
+      statusEl.style.color = 'red';
+    } else {
+      statusEl.textContent = '✅ Connected! Found ' + (data?.length || 0) + ' products.';
+      statusEl.style.color = 'green';
+    }
+  </script>
+</body>
+</html>

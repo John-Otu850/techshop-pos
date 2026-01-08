@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sales - TechShop POS</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .cart-item { border-bottom: 1px solid #eee; padding: 8px 0; }
+    .receipt-preview { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="index.html">TechShop POS</a>
+      <div>
+        <a class="btn btn-outline-light btn-sm me-2" href="index.html">Dashboard</a>
+        <a class="btn btn-light btn-sm" href="products.html">Products</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <h2>🛒 New Sale</h2>
+
+    <!-- Customer Name -->
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label for="customer-name" class="form-label">Customer Name (Optional)</label>
+        <input type="text" class="form-control" id="customer-name" placeholder="Walk-in customer">
+      </div>
+    </div>
+
+    <!-- Product Selection -->
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label for="product-select" class="form-label">Select Product</label>
+        <select id="product-select" class="form-select" required>
+          <option value="">-- Choose a product --</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label for="quantity" class="form-label">Qty</label>
+        <input type="number" class="form-control" id="quantity" value="1" min="1">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">&nbsp;</label>
+        <button id="add-to-cart" class="btn btn-success form-control">Add</button>
+      </div>
+    </div>
+
+    <!-- Cart -->
+    <h4>🛒 Cart</h4>
+    <div id="cart-items">
+      <!-- Cart items loaded here -->
+    </div>
+
+    <!-- Total -->
+    <div class="row mt-3">
+      <div class="col-md-6 text-end">
+        <h4>Total: $<span id="cart-total">0.00</span></h4>
+      </div>
+      <div class="col-md-6">
+        <button id="complete-sale" class="btn btn-primary btn-lg w-100">Complete Sale</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module">
+    // 🔑 Replace with your Supabase credentials
+    const supabaseUrl = 'https://zxxgfmwyiwobwzwuovyf.supabase.co';
+    const supabaseKey = 'sb_publishable_4iPf_PhVHabhHyzP8JkQNQ_UrhcwjT4';
+
+    const { createClient } = supabase;
+    const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+    let cart = [];
+
+    // Load products into dropdown
+    async function loadProductsForSale() {
+      const { data, error } = await supabaseClient.from('products').select('id, name, price, stock').gte('stock', 1).order('name');
+      if (error) {
+        console.error('Error loading products:', error);
+        return;
+      }
+
+      const select = document.getElementById('product-select');
+      select.innerHTML = '<option value="">-- Choose a product --</option>';
+      data.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p.id;
+        option.textContent = `${p.name} - $${p.price.toFixed(2)} (Stock: ${p.stock})`;
+        option.dataset.price = p.price;
+        option.dataset.stock = p.stock;
+        select.appendChild(option);
+      });
+    }
+
+    // Add to cart
+    async function addToCart() {
+      const select = document.getElementById('product-select');
+      const option = select.options[select.selectedIndex];
+      
+      if (!option.value) {
+        alert('Please select a product');
+        return;
+      }
+
+      const productId = parseInt(option.value);
+      const name = option.textContent.split(' - ')[0];
+      const price = parseFloat(option.dataset.price);
+      const stock = parseInt(option.dataset.stock);
+      const qty = parseInt(document.getElementById('quantity').value);
+
+      if (qty < 1) {
+        alert('Quantity must be at least 1');
+        return;
+      }
+
+      if (qty > stock) {
+        alert(`Only ${stock} units available for ${name}`);
+        return;
+      }
+
+      // Check if product already in cart
+      const existing = cart.find(item => item.id === productId);
+      if (existing) {
+        existing.qty += qty;
+      } else {
+        cart.push({ id: productId, name, price, qty });
+      }
+
+      renderCart();
+      document.getElementById('quantity').value = 1;
+      select.selectedIndex = 0;
+    }
+
+    // Render cart
+    function renderCart() {
+      const cartContainer = document.getElementById('cart-items');
+      cartContainer.innerHTML = '';
+
+      if (cart.length === 0) {
+        cartContainer.innerHTML = '<p class="text-muted">Cart is empty</p>';
+        document.getElementById('cart-total').textContent = '0.00';
+        return;
+      }
+
+      let total = 0;
+      cart.forEach((item, index) => {
+        const itemTotal = item.price * item.qty;
+        total += itemTotal;
+
+        const div = document.createElement('div');
+        div.className = 'cart-item';
+        div.innerHTML = `
+          <div class="row">
+            <div class="col-6">${item.name} x${item.qty}</div>
+            <div class="col-4 text-end">$${itemTotal.toFixed(2)}</div>
+            <div class="col-2 text-end">
+              <button class="btn btn-sm btn-danger remove-item" data-index="${index}">✕</button>
+            </div>
+          </div>
+        `;
+        cartContainer.appendChild(div);
+      });
+
+      document.getElementById('cart-total').textContent = total.toFixed(2);
+
+      // Add remove listeners
+      document.querySelectorAll('.remove-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const index = parseInt(btn.dataset.index);
+          cart.splice(index, 1);
+          renderCart();
+        });
+      });
+    }
+
+    // Complete sale
+    async function completeSale() {
+      if (cart.length === 0) {
+        alert('Cart is empty!');
+        return;
+      }
+
+      if (!confirm('Complete this sale?')) return;
+
+      // Get product costs
+      const productIds = cart.map(item => item.id);
+      const { data: costs, error } = await supabaseClient
+        .from('products')
+        .select('id, cost')
+        .in('id', productIds);
+
+      if (error) {
+        alert('Error fetching product costs: ' + error.message);
+        return;
+      }
+
+      if (!costs || costs.length === 0) {
+        alert('No cost data found for selected products.');
+        return;
+      }
+
+      const costMap = {};
+      costs.forEach(p => costMap[p.id] = p.cost);
+
+      // Calculate totals
+      let totalAmount = 0;
+      let totalCost = 0;
+      const saleItems = [];
+
+      for (const item of cart) {
+        const revenue = item.price * item.qty;
+        const cost = costMap[item.id] * item.qty;
+        totalAmount += revenue;
+        totalCost += cost;
+        saleItems.push({
+          product_id: item.id,
+          quantity: item.qty,
+          price_per_unit: item.price
+        });
+      }
+
+      const profit = totalAmount - totalCost;
+      const customerName = document.getElementById('customer-name').value.trim() || null;
+
+      // Insert sale
+      const { data: sale, error: saleError } = await supabaseClient
+        .from('sales')
+        .insert([{ customer_name: customerName, total_amount: totalAmount, profit: profit }])
+        .select()
+        .single();
+
+      if (saleError) {
+        alert('Error saving sale: ' + saleError.message);
+        return;
+      }
+
+      // Insert sale items
+      const saleItemsWithId = saleItems.map(item => ({
+        ...item,
+        sale_id: sale.id
+      }));
+
+      const { error: itemsError } = await supabaseClient
+        .from('sale_items')
+        .insert(saleItemsWithId);
+
+      if (itemsError) {
+        alert('Error saving sale items: ' + itemsError.message);
+        return;
+      }
+
+      // Update product stock
+      for (const item of cart) {
+        await supabaseClient
+          .from('products')
+          .update({ stock: supabaseClient.rpc('stock_minus', { current: 'stock', amount: item.qty }) })
+          .eq('id', item.id);
+      }
+
+      // Save receipt data to localStorage for printing
+      const receiptData = {
+        shopName: 'TechShop Computer Store',
+        customer: customerName || 'Walk-in Customer',
+        items: cart.map(item => ({
+          name: item.name,
+          qty: item.qty,
+          price: item.price,
+          total: item.price * item.qty
+        })),
+        total: totalAmount,
+        date: new Date().toLocaleString()
+      };
+
+      localStorage.setItem('receiptData', JSON.stringify(receiptData));
+      window.location.href = 'receipt.html';
+
+      // Reset cart
+      cart = [];
+      document.getElementById('customer-name').value = '';
+    }
+
+    // Event listeners
+    document.getElementById('add-to-cart').addEventListener('click', addToCart);
+    document.getElementById('complete-sale').addEventListener('click', completeSale);
+
+    // Initial load
+    loadProductsForSale();
+    renderCart();
+  </script>
+</body>
+</html>

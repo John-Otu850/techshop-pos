@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TechShop POS - Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .card { margin: 10px; }
+    .stat-card { font-size: 1.2em; font-weight: bold; }
+    .btn-group { margin-bottom: 15px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="index.html">TechShop POS</a>
+      <div>
+        <a class="btn btn-outline-light btn-sm me-2" href="products.html">Products</a>
+        <a class="btn btn-light btn-sm" href="sales.html">New Sale</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <h2>📊 Dashboard</h2>
+
+    <!-- Date Filter Buttons -->
+    <div class="btn-group" role="group">
+      <button class="btn btn-outline-primary active" data-filter="all">All Time</button>
+      <button class="btn btn-outline-primary" data-filter="today">Today</button>
+      <button class="btn btn-outline-primary" data-filter="week">This Week</button>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <div class="card text-bg-success">
+          <div class="card-body stat-card">
+            <h5>Total Sales</h5>
+            <span id="total-sales">$0.00</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-bg-info">
+          <div class="card-body stat-card">
+            <h5>Total Profit</h5>
+            <span id="total-profit">$0.00</span>
+          </div>
+        </div>
+      </div>
+      < <div class="col-md-3">
+        <div class="card text-bg-warning">
+          <div class="card-body stat-card">
+            <h5>Low Stock</h5>
+            <span id="low-stock-count">0</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-bg-danger">
+          <div class="card-body stat-card">
+            <h5>Out of Stock</h5>
+            <span id="out-of-stock">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h4>⚠️ Low Stock Alerts</h4>
+    <table class="table table-striped" id="low-stock-table">
+      <thead><tr><th>ID</th><th>Product</th><th>Stock</th><th>Min Required</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module">
+    // 🔑 Replace with your Supabase credentials (if different)
+    const supabaseUrl = 'https://zxxgfmwyiwobwzwuovyf.supabase.co';
+    const supabaseKey = 'sb_publishable_4iPf_PhVHabhHyzP8JkQNQ_UrhcwjT4';
+
+    const { createClient } = supabase;
+    const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+    let currentFilter = 'all';
+
+    // Set up filter buttons
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('[data-filter]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentFilter = btn.dataset.filter;
+          loadDashboard();
+        });
+      });
+
+      loadDashboard();
+    });
+
+    // Load dashboard stats with filter
+    async function loadDashboard() {
+      console.log(`🚀 Loading dashboard (${currentFilter})...`);
+
+      // Get products (always full list)
+      const { data: products, error: productsError } = await supabaseClient.from('products').select('*');
+      if (productsError) {
+        console.error('Error loading products:', productsError);
+        return;
+      }
+
+      // Calculate low stock and out of stock
+      const lowStockItems = products.filter(p => p.stock <= p.min_stock && p.stock > 0);
+      const outOfStock = products.filter(p => p.stock === 0).length;
+
+      document.getElementById('low-stock-count').textContent = lowStockItems.length;
+      document.getElementById('out-of-stock').textContent = outOfStock;
+
+      // Populate low stock table
+      const tbody = document.querySelector('#low-stock-table tbody');
+      tbody.innerHTML = '';
+      lowStockItems.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${p.id}</td><td>${p.name}</td><td>${p.stock}</td><td>${p.min_stock}</td>`;
+        tbody.appendChild(tr);
+      });
+
+      // Build query for sales based on filter
+      let query = supabaseClient.from('sales').select('total_amount, profit');
+
+if (currentFilter === 'today') {
+  const now = new Date();
+  const startOfDay = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const endOfDay = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999));
+
+  query = query
+    .gte('date_time', startOfDay.toISOString())
+    .lte('date_time', endOfDay.toISOString());
+} else if (currentFilter === 'week') {
+  const now = new Date();
+  const startOfWeek = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()));
+  startOfWeek.setUTCHours(0, 0, 0, 0);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
+  endOfWeek.setUTCHours(23, 59, 59, 999);
+
+  query = query
+    .gte('date_time', startOfWeek.toISOString())
+    .lte('date_time', endOfWeek.toISOString());
+}
+
+      const { data: sales, error: salesError } = await query;
+
+      if (salesError) {
+        console.error('Error loading sales:', salesError);
+        return;
+      }
+
+      console.log('✅ Sales loaded:', sales);
+
+      const totalSales = sales?.reduce((sum, s) => sum + s.total_amount, 0) || 0;
+      const totalProfit = sales?.reduce((sum, s) => sum + s.profit, 0) || 0;
+
+      document.getElementById('total-sales').textContent = `$${totalSales.toFixed(2)}`;
+      document.getElementById('total-profit').textContent = `$${totalProfit.toFixed(2)}`;
+    }
+  </script>
+</body>
+</html>
