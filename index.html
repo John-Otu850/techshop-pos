@@ -37,7 +37,7 @@
         <div class="card text-bg-success">
           <div class="card-body stat-card">
             <h5>Total Sales</h5>
-            <span id="total-sales">$0.00</span>
+            <span id="total-sales"> ₵0.00</span>
           </div>
         </div>
       </div>
@@ -45,7 +45,7 @@
         <div class="card text-bg-info">
           <div class="card-body stat-card">
             <h5>Total Profit</h5>
-            <span id="total-profit">$0.00</span>
+            <span id="total-profit"> ₵0.00</span>
           </div>
         </div>
       </div>
@@ -163,8 +163,8 @@ if (currentFilter === 'today') {
       const totalSales = sales?.reduce((sum, s) => sum + s.total_amount, 0) || 0;
       const totalProfit = sales?.reduce((sum, s) => sum + s.profit, 0) || 0;
 
-      document.getElementById('total-sales').textContent = `$${totalSales.toFixed(2)}`;
-      document.getElementById('total-profit').textContent = `$${totalProfit.toFixed(2)}`;
+      document.getElementById('total-sales').textContent = ` ₵${totalSales.toFixed(2)}`;
+      document.getElementById('total-profit').textContent = `₵${totalProfit.toFixed(2)}`;
     }
   </script>
 </body>
