@@ -64,13 +64,13 @@
       // Add items
       receiptData.items.forEach(item => {
         const line = `${item.name} x${item.qty}`;
-        const priceLine = `$${item.price.toFixed(2)} x ${item.qty} = $${item.total.toFixed(2)}`;
+        const priceLine = `₵${item.price.toFixed(2)} x ${item.qty} = ₵${item.total.toFixed(2)}`;
         html += `<div><span>${line}</span><span class="text-right">${priceLine}</span></div>`;
       });
 
       html += `
         <div class="divider"></div>
-        <div class="bold text-right">TOTAL: $${receiptData.total.toFixed(2)}</div>
+        <div class="bold text-right">TOTAL: ₵${receiptData.total.toFixed(2)}</div>
         <div class="text-center" style="margin-top: 15px;">Thank you for your purchase!</div>
         <div class="text-center">Visit us again soon!</div>
       `;
